@@ -14,6 +14,8 @@ private:
     using Img = cimg_library::CImg<unsigned char>;
     using Hist = cimg_library::CImg<float>;
 
+    int m_max_mod_occurs;
+    int m_min_slices;
     bool m_pack_histograms;
 
     std::filesystem::path m_manifest_dir;
@@ -72,9 +74,12 @@ private:
     }
 
 public:
-    DICOM2CIMG(bool pack_histograms = false) : m_pack_histograms(pack_histograms)
+    DICOM2CIMG(int max_mod_occurs, int min_slices, bool pack_histograms)
+        : m_max_mod_occurs(max_mod_occurs), m_min_slices(min_slices), m_pack_histograms(pack_histograms)
     {
     }
+
+    DICOM2CIMG(const DICOM2CIMG &) = delete;
 
     bool load_metadatas(const std::filesystem::path &manifest_dir)
     {
@@ -89,7 +94,7 @@ public:
                     if (csvFile)
                     {
                         CSVRow row;
-                        row.readNextRow(csvFile); // skip the header
+                        row.readNextRow(csvFile); // Skip the header
                         while (row.readNextRow(csvFile))
                         {
                             using FMF = FileMetadata::Field;
@@ -97,6 +102,7 @@ public:
                                 FileMetadata(
                                     row[FMF::Collection],
                                     row[FMF::Modality],
+                                    row[FMF::Slices],
                                     row[FMF::Folder]));
                             m_modality_occurrences.insert(
                                 std::pair<std::string, unsigned int>(
@@ -107,7 +113,7 @@ public:
                     }
                     else
                     {
-                        // weird ifstream error reporting part
+                        // Weird ifstream error reporting part
                         std::cerr << "Error: " << strerror(errno);
                         return false;
                     }
@@ -137,9 +143,23 @@ public:
         // Update the metadata at the very end so no const
         for (auto &metadata : m_metadatas)
         {
+            // Count occurrences
+            m_modality_occurrences[metadata.m_modality] = m_modality_occurrences[metadata.m_modality] + 1;
+            if (m_modality_occurrences[metadata.m_modality] > m_max_mod_occurs)
+            {
+                // We reached the quota for this modality
+                continue;
+            }
+
+            // Count slices
+            if (std::stoi(metadata.m_slices) < m_min_slices)
+            {
+                // Not enough slices
+                continue;
+            }
+
+            // Fix the path
             fs::path file_dir = m_manifest_dir / metadata.m_folder.substr(2);
-            std::cout << file_dir << std::endl
-                      << std::endl;
             if (!fs::is_directory(file_dir))
             {
                 std::cerr << file_dir << " is not a directory" << std::endl;
@@ -166,9 +186,9 @@ public:
                 metadata.m_modality + "_" +
                 std::to_string(m_modality_occurrences[metadata.m_modality]) +
                 ".cimg";
-            m_modality_occurrences[metadata.m_modality] = m_modality_occurrences[metadata.m_modality] + 1;
             fs::path destination_file = destination_dir / file_name;
 
+            // Prepare the directory for packed images
             fs::path destination_packed = destination_dir / "packed";
             if (m_pack_histograms && !fs::exists(destination_packed))
             {
@@ -207,11 +227,9 @@ public:
 
                     if (volumetric_image.is_empty())
                     {
-                        std::cout << "Slice's parameters: "
+                        std::cout << "Slice dimensions: "
                                   << image.width() << " x; "
                                   << image.height() << " y; "
-                                  << image.depth() << " z; "
-                                  << image.spectrum() << " spectrum; "
                                   << std::endl;
 
                         volumetric_image = Img(image.width(), image.height(), 1, image.spectrum(), 0);
@@ -229,6 +247,7 @@ public:
 
                 volumetric_image.save_cimg(destination_file.c_str());
 
+                // Pack the image if necessary
                 int did_pack = 0;
                 if (m_pack_histograms)
                 {
@@ -241,7 +260,13 @@ public:
                     }
                 }
 
-                metadata.set_image_params(file_name, volumetric_image.width(), volumetric_image.height(), volumetric_image.depth(), did_pack);
+                // Update metadata
+                metadata.set_image_params(
+                    file_name,
+                    volumetric_image.width(),
+                    volumetric_image.height(),
+                    volumetric_image.depth(),
+                    did_pack);
             }
             catch (...) // Skip images with any kinds of problems
             {
@@ -250,11 +275,12 @@ public:
             }
         }
 
+        // Create our own metadata csv so we know what's what
         fs::path converted_metadatas = destination_dir / "conv_metadata.csv";
         std::ofstream conv_metadata(converted_metadatas);
         if (conv_metadata)
         {
-            conv_metadata << "Name,Modality,Width,Height,Depth,HasPackedVersion\n";
+            conv_metadata << FileMetadata::get_info_header();
             for (const auto &m : m_metadatas)
             {
                 conv_metadata << m.get_info() << "\n";

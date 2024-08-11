@@ -7,16 +7,16 @@ private:
     using sv = std::string_view;
 
 public:
-    s m_collection, m_modality, m_folder, m_result_name;
+    s m_collection, m_modality, m_slices, m_folder, m_result_name;
     int m_width, m_height, m_depth, m_is_packed;
 
-    FileMetadata(s &c, s &m, s &f)
-        : m_collection(c), m_modality(m), m_folder(f)
+    FileMetadata(s &c, s &m, s &sl, s &f)
+        : m_collection(c), m_modality(m), m_slices(sl), m_folder(f)
     {
     }
 
-    FileMetadata(sv c, sv m, sv f)
-        : m_collection(s(c)), m_modality(s(m)), m_folder(s(f))
+    FileMetadata(sv c, sv m, sv sl, sv f)
+        : m_collection(s(c)), m_modality(s(m)), m_slices(s(sl)), m_folder(s(f))
     {
     }
 
@@ -29,9 +29,14 @@ public:
         m_is_packed = is_packed;
     }
 
+    static inline s get_info_header() {
+        return "Name,OriginFolder,Modality,Width,Height,Depth,HasPackedVersion\n";
+    }
+
     s get_info() const
     {
         return m_result_name
+        + "," + m_folder
         + "," + m_modality
         + "," + std::to_string(m_width)
         + "," + std::to_string(m_height)
@@ -43,6 +48,7 @@ public:
     {
         Collection = 1,
         Modality = 10,
+        Slices = 13,
         Folder = 15,
     };
 };
