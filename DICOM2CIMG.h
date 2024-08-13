@@ -69,7 +69,7 @@ private:
         for (int i = 0; i < histogram.size(); ++i)
         {
             float bin_val = histogram[i];
-            std::cout << i << " : " << bin_val << std::endl;
+
             if (bin_val > 0)
             {
                 if (min_active_bin == -1)
@@ -79,10 +79,7 @@ private:
             }
         }
         metadata.m_active_levels = active_bins;
-
-        std::cout << active_bins << " / (1.0 + " << max_active_bin << " - " << min_active_bin << ")" << std::endl;
-        float histogram_usage = (float)active_bins / (float)(1 + max_active_bin - min_active_bin);
-        metadata.m_histogram_usage = histogram_usage;
+        metadata.m_histogram_usage = (float)active_bins / (float)(1 + max_active_bin - min_active_bin);
     }
 
 public:
@@ -167,18 +164,17 @@ public:
         // Update the metadata at the very end so no const
         for (auto &metadata : m_metadatas)
         {
-            // Count occurrences
-            m_modality_occurrences[metadata.m_modality] = m_modality_occurrences[metadata.m_modality] + 1;
-            if (m_modality_occurrences[metadata.m_modality] > m_max_mod_occurs)
-            {
-                // We reached the quota for this modality
-                continue;
-            }
-
             // Check if enough slices
             if (std::stoi(metadata.m_slices) < m_min_slices)
             {
                 // Not enough slices
+                continue;
+            }
+
+            // Count occurrences
+            if (m_modality_occurrences[metadata.m_modality] > m_max_mod_occurs - 1)
+            {
+                // We reached the quota for this modality
                 continue;
             }
 
@@ -208,7 +204,7 @@ public:
             std::string file_name =
                 metadata.m_collection + "_" +
                 metadata.m_modality + "_" +
-                std::to_string(m_modality_occurrences[metadata.m_modality]) +
+                std::to_string(m_modality_occurrences[metadata.m_modality] + 1) +
                 ".cimg";
             fs::path destination_file = collection_dir / file_name;
 
@@ -287,6 +283,7 @@ public:
 
                 // Grand finish
                 metadata.m_converted = true;
+                m_modality_occurrences[metadata.m_modality] = m_modality_occurrences[metadata.m_modality] + 1;
             }
             catch (...) // Skip images with any kinds of problems
             {
