@@ -46,6 +46,11 @@ private:
         return under_threshold_bins > num_bins / 2;
     }
 
+    bool is_sparse_histogram(const FileMetadata &metadata, int num_bins = 256) const
+    {
+        return metadata.m_active_levels > num_bins / 2;
+    }
+
     Img pack_volumetric_image(const Img &image, const Hist &histogram, float threshold = 0.1f) const
     {
         // Create the mapping from original bins to packed bins
@@ -71,6 +76,33 @@ private:
         }
 
         return packed_image;
+    }
+
+    void calculate_histogram_usage(const Hist &histogram, FileMetadata &metadata)
+    {
+        int num_bins = histogram.size();
+        int active_bins = 0;
+        float min_active = 1.0f;
+        float max_active = 0.0f;
+
+        for (int i = 0; i < num_bins; ++i)
+        {
+            float bin_val = histogram[i];
+
+            if (bin_val > 0.0f)
+            {
+                ++active_bins;
+                if (bin_val > max_active)
+                    max_active = bin_val;
+                if (bin_val < min_active)
+                    min_active = bin_val;
+            }
+        }
+        metadata.m_active_levels = active_bins;
+
+        float active_normalized = (float)active_bins / (float)num_bins;
+        float histogram_usage = active_normalized / (1.0f + max_active - min_active);
+        metadata.m_histogram_usage = histogram_usage;
     }
 
 public:
@@ -131,14 +163,26 @@ public:
         return true;
     }
 
-    bool convert(const std::filesystem::path &destination_dir)
+    bool convert(const std::filesystem::path &collections_dir, const std::string &collection_name)
     {
+        namespace fs = std::filesystem;
+
+        // Prepare the directory for our collection
+        fs::path collection_dir = collections_dir / collection_name;
+        if (!fs::exists(collection_dir))
+        {
+            if (!fs::create_directory(collection_dir))
+            {
+                std::cerr << "Unable to create collection directory" << std::endl;
+                return false;
+            }
+        }
+
         if (m_metadatas.empty())
         {
             std::cerr << "No metadatas loaded" << std::endl;
             return false;
         }
-        namespace fs = std::filesystem;
 
         // Update the metadata at the very end so no const
         for (auto &metadata : m_metadatas)
@@ -186,10 +230,10 @@ public:
                 metadata.m_modality + "_" +
                 std::to_string(m_modality_occurrences[metadata.m_modality]) +
                 ".cimg";
-            fs::path destination_file = destination_dir / file_name;
+            fs::path destination_file = collection_dir / file_name;
 
             // Prepare the directory for packed images
-            fs::path destination_packed = destination_dir / "packed";
+            fs::path destination_packed = collection_dir / "packed";
             if (m_pack_histograms && !fs::exists(destination_packed))
             {
                 if (!fs::create_directory(destination_packed))
@@ -247,12 +291,16 @@ public:
 
                 volumetric_image.save_cimg(destination_file.c_str());
 
+                // Calculate histogram usage and update metadata with it
+                Hist histogram = get_histogram(volumetric_image);
+                calculate_histogram_usage(histogram, metadata);
+
                 // Pack the image if necessary
                 int did_pack = 0;
                 if (m_pack_histograms)
                 {
-                    Hist histogram = get_histogram(volumetric_image);
-                    if ((is_sparse_histogram(histogram)))
+                    // Doing it two-way because the methods are equivocal
+                    if (is_sparse_histogram(metadata) || is_sparse_histogram(histogram))
                     {
                         Img packed_image = pack_volumetric_image(volumetric_image, histogram);
                         did_pack = 1;
@@ -260,7 +308,7 @@ public:
                     }
                 }
 
-                // Update metadata
+                // Update metadata with the remaining parameters
                 metadata.set_image_params(
                     file_name,
                     volumetric_image.width(),
@@ -276,7 +324,7 @@ public:
         }
 
         // Create our own metadata csv so we know what's what
-        fs::path converted_metadatas = destination_dir / "conv_metadata.csv";
+        fs::path converted_metadatas = collection_dir / "conv_metadata.csv";
         std::ofstream conv_metadata(converted_metadatas);
         if (conv_metadata)
         {
