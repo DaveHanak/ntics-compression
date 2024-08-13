@@ -28,30 +28,12 @@ private:
         return histogram;
     }
 
-    bool is_sparse_histogram(const Hist &histogram, float threshold = 0.1f) const
-    {
-        int num_bins = histogram.size();
-        int under_threshold_bins = 0;
-
-        // Count the number of bins with values under the threshold
-        for (int i = 0; i < num_bins; ++i)
-        {
-            if (histogram[i] <= threshold)
-            {
-                ++under_threshold_bins;
-            }
-        }
-
-        // Define sparsity as having more than half of the bins under the threshold
-        return under_threshold_bins > num_bins / 2;
-    }
-
     bool is_sparse_histogram(const FileMetadata &metadata, int num_bins = 256) const
     {
-        return metadata.m_active_levels < num_bins / 2;
+        return metadata.m_active_levels < num_bins;
     }
 
-    Img pack_volumetric_image(const Img &image, const Hist &histogram, float threshold = 0.1f) const
+    Img pack_volumetric_image(const Img &image, const Hist &histogram) const
     {
         // Create the mapping from original bins to packed bins
         std::map<int, int> bin_mapping;
@@ -60,7 +42,7 @@ private:
         // Only add mappings for active levels
         for (int i = 0; i < histogram.size(); ++i)
         {
-            if (histogram[i] > threshold)
+            if (histogram[i] > 0)
             {
                 bin_mapping[i] = packed_bin_index++;
             }
@@ -80,28 +62,26 @@ private:
 
     void calculate_histogram_usage(const Hist &histogram, FileMetadata &metadata)
     {
-        int num_bins = histogram.size();
         int active_bins = 0;
-        float min_active = 1.0f;
-        float max_active = 0.0f;
+        int min_active_bin = -1;
+        int max_active_bin;
 
-        for (int i = 0; i < num_bins; ++i)
+        for (int i = 0; i < histogram.size(); ++i)
         {
             float bin_val = histogram[i];
-
-            if (bin_val > 0.0f)
+            std::cout << i << " : " << bin_val << std::endl;
+            if (bin_val > 0)
             {
+                if (min_active_bin == -1)
+                    min_active_bin = i;
                 ++active_bins;
-                if (bin_val > max_active)
-                    max_active = bin_val;
-                if (bin_val < min_active)
-                    min_active = bin_val;
+                max_active_bin = i;
             }
         }
         metadata.m_active_levels = active_bins;
 
-        float active_normalized = (float)active_bins / (float)num_bins;
-        float histogram_usage = active_normalized / (1.0f + max_active - min_active);
+        std::cout << active_bins << " / (1.0 + " << max_active_bin << " - " << min_active_bin << ")" << std::endl;
+        float histogram_usage = (float)active_bins / (float)(1 + max_active_bin - min_active_bin);
         metadata.m_histogram_usage = histogram_usage;
     }
 
@@ -289,7 +269,7 @@ public:
                 if (m_pack_histograms)
                 {
                     // Doing it two-way because the methods are equivocal
-                    if (is_sparse_histogram(metadata) || is_sparse_histogram(histogram))
+                    if (is_sparse_histogram(metadata))
                     {
                         Img packed_image = pack_volumetric_image(volumetric_image, histogram);
                         did_pack = 1;
