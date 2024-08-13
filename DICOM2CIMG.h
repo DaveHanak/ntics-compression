@@ -48,7 +48,7 @@ private:
 
     bool is_sparse_histogram(const FileMetadata &metadata, int num_bins = 256) const
     {
-        return metadata.m_active_levels > num_bins / 2;
+        return metadata.m_active_levels < num_bins / 2;
     }
 
     Img pack_volumetric_image(const Img &image, const Hist &histogram, float threshold = 0.1f) const
@@ -195,7 +195,7 @@ public:
                 continue;
             }
 
-            // Count slices
+            // Check if enough slices
             if (std::stoi(metadata.m_slices) < m_min_slices)
             {
                 // Not enough slices
@@ -271,11 +271,6 @@ public:
 
                     if (volumetric_image.is_empty())
                     {
-                        std::cout << "Slice dimensions: "
-                                  << image.width() << " x; "
-                                  << image.height() << " y; "
-                                  << std::endl;
-
                         volumetric_image = Img(image.width(), image.height(), 1, image.spectrum(), 0);
                     }
 
@@ -283,12 +278,6 @@ public:
                 }
 
                 // The volumetric image now contains all slices
-                std::cout << "Volumetric image dimensions: "
-                          << volumetric_image.width() << "x; "
-                          << volumetric_image.height() << "y; "
-                          << volumetric_image.depth() << "z; "
-                          << std::endl;
-
                 volumetric_image.save_cimg(destination_file.c_str());
 
                 // Calculate histogram usage and update metadata with it
@@ -315,6 +304,9 @@ public:
                     volumetric_image.height(),
                     volumetric_image.depth(),
                     did_pack);
+
+                // Grand finish
+                metadata.m_converted = true;
             }
             catch (...) // Skip images with any kinds of problems
             {
@@ -331,7 +323,8 @@ public:
             conv_metadata << FileMetadata::get_info_header();
             for (const auto &m : m_metadatas)
             {
-                conv_metadata << m.get_info() << "\n";
+                if (m.m_converted)
+                    conv_metadata << m.get_info() << "\n";
             }
         }
         else

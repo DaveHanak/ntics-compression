@@ -11,6 +11,8 @@ public:
     int m_width, m_height, m_depth, m_active_levels, m_is_packed;
     float m_histogram_usage;
 
+    bool m_converted = false;
+
     FileMetadata(s &c, s &m, s &sl, s &f)
         : m_collection(c), m_modality(m), m_slices(sl), m_folder(f)
     {
