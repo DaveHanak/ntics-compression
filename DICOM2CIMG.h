@@ -226,7 +226,7 @@ public:
                 metadata.m_collection + "_" +
                 metadata.m_modality + "_" +
                 std::to_string(m_modality_occurrences[metadata.m_modality] + 1);
-            fs::path destination_file = collection_dir / (file_name + ".cimg");
+            fs::path destination_file = collection_dir / file_name;
 
             // Prepare the directory for packed images
             fs::path destination_packed = collection_dir / "packed";
@@ -277,10 +277,10 @@ public:
                 switch (m_format)
                 {
                 case CIMG:
-                    volumetric_image.save_cimg(destination_file.c_str());
+                    volumetric_image.save_cimg(destination_file.append(".cimg").c_str());
                     break;
                 case RAW:
-                    volumetric_image.save_raw(destination_file.c_str());
+                    volumetric_image.save_raw(destination_file.append(".raw").c_str());
                     break;
                 default:
                     std::cerr << "Unsupported format" << std::endl;
@@ -303,10 +303,10 @@ public:
                         switch (m_format)
                         {
                         case CIMG:
-                            packed_image.save_cimg(destination_file_packed.c_str());
+                            packed_image.save_cimg(destination_file_packed.append(".cimg").c_str());
                             break;
                         case RAW:
-                            packed_image.save_raw(destination_file_packed.c_str());
+                            packed_image.save_raw(destination_file_packed.append(".raw").c_str());
                             break;
                         default:
                             std::cerr << "Unsupported format" << std::endl;
