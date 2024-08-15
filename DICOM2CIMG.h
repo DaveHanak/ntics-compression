@@ -8,16 +8,42 @@
 #include "CSVRow.h"
 #include "FileMetadata.h"
 
-class DICOM2CIMG
+enum ImageFormat
+{
+    CIMG,
+    RAW
+};
+
+class DicomConverter
 {
 private:
     using Img = cimg_library::CImg<unsigned char>;
     using Hist = cimg_library::CImg<float>;
 
     int m_max_mod_occurs;
-    int m_min_slices;
-    bool m_pack_histograms;
+    int m_min_slices, m_min_slices_us;
+    bool m_pack_histograms, m_copy_originals;
+    ImageFormat m_format;
 
+public:
+    DicomConverter(
+        int max_mod_occurs,
+        int min_slices,
+        int min_slices_us,
+        bool pack_histograms,
+        bool copy_originals,
+        ImageFormat format) : m_max_mod_occurs(max_mod_occurs),
+                              m_min_slices(min_slices),
+                              m_min_slices_us(min_slices_us),
+                              m_pack_histograms(pack_histograms),
+                              m_copy_originals(copy_originals),
+                              m_format(format)
+    {
+    }
+
+    DicomConverter(const DicomConverter &) = delete;
+
+private:
     std::filesystem::path m_manifest_dir;
     std::vector<FileMetadata> m_metadatas;
     std::map<std::string, unsigned int> m_modality_occurrences;
@@ -83,13 +109,6 @@ private:
     }
 
 public:
-    DICOM2CIMG(int max_mod_occurs, int min_slices, bool pack_histograms)
-        : m_max_mod_occurs(max_mod_occurs), m_min_slices(min_slices), m_pack_histograms(pack_histograms)
-    {
-    }
-
-    DICOM2CIMG(const DICOM2CIMG &) = delete;
-
     bool load_metadatas(const std::filesystem::path &manifest_dir)
     {
         namespace fs = std::filesystem;
@@ -165,7 +184,9 @@ public:
         for (auto &metadata : m_metadatas)
         {
             // Check if enough slices
-            if (std::stoi(metadata.m_slices) < m_min_slices)
+            int meta_slices = std::stoi(metadata.m_slices);
+            if (metadata.m_modality != "US" && meta_slices < m_min_slices ||
+                metadata.m_modality == "US" && meta_slices < m_min_slices_us)
             {
                 // Not enough slices
                 continue;
@@ -204,9 +225,8 @@ public:
             std::string file_name =
                 metadata.m_collection + "_" +
                 metadata.m_modality + "_" +
-                std::to_string(m_modality_occurrences[metadata.m_modality] + 1) +
-                ".cimg";
-            fs::path destination_file = collection_dir / file_name;
+                std::to_string(m_modality_occurrences[metadata.m_modality] + 1);
+            fs::path destination_file = collection_dir / (file_name + ".cimg");
 
             // Prepare the directory for packed images
             fs::path destination_packed = collection_dir / "packed";
@@ -254,7 +274,18 @@ public:
                 }
 
                 // The volumetric image now contains all slices
-                volumetric_image.save_cimg(destination_file.c_str());
+                switch (m_format)
+                {
+                case CIMG:
+                    volumetric_image.save_cimg(destination_file.c_str());
+                    break;
+                case RAW:
+                    volumetric_image.save_raw(destination_file.c_str());
+                    break;
+                default:
+                    std::cerr << "Unsupported format" << std::endl;
+                    return false;
+                }
 
                 // Calculate histogram usage and update metadata with it
                 Hist histogram = get_histogram(volumetric_image);
@@ -269,7 +300,18 @@ public:
                     {
                         Img packed_image = pack_volumetric_image(volumetric_image, histogram);
                         did_pack = 1;
-                        packed_image.save_cimg(destination_file_packed.c_str());
+                        switch (m_format)
+                        {
+                        case CIMG:
+                            packed_image.save_cimg(destination_file_packed.c_str());
+                            break;
+                        case RAW:
+                            packed_image.save_raw(destination_file_packed.c_str());
+                            break;
+                        default:
+                            std::cerr << "Unsupported format" << std::endl;
+                            return false;
+                        }
                     }
                 }
 
@@ -284,6 +326,7 @@ public:
                 // Grand finish
                 metadata.m_converted = true;
                 m_modality_occurrences[metadata.m_modality] = m_modality_occurrences[metadata.m_modality] + 1;
+                if (m_copy_originals) std::filesystem::copy(file_dir, collection_dir / file_name, std::filesystem::copy_options::recursive);
             }
             catch (...) // Skip images with any kinds of problems
             {
