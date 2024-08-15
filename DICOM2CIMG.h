@@ -222,10 +222,24 @@ public:
                       { return a.path().filename() < b.path().filename(); });
 
             // The result file name
+            std::string suffix;
+            switch (m_format)
+            {
+            case CIMG:
+                suffix = ".cimg";
+                break;
+            case RAW:
+                suffix = ".raw";
+                break;
+            default:
+                std::cerr << "Unsupported format" << std::endl;
+                return false;
+            }
             std::string file_name =
                 metadata.m_collection + "_" +
                 metadata.m_modality + "_" +
-                std::to_string(m_modality_occurrences[metadata.m_modality] + 1);
+                std::to_string(m_modality_occurrences[metadata.m_modality] + 1) +
+                suffix;
             fs::path destination_file = collection_dir / file_name;
 
             // Prepare the directory for packed images
@@ -277,10 +291,10 @@ public:
                 switch (m_format)
                 {
                 case CIMG:
-                    volumetric_image.save_cimg(destination_file.append(".cimg").c_str());
+                    volumetric_image.save_cimg(destination_file.c_str());
                     break;
                 case RAW:
-                    volumetric_image.save_raw(destination_file.append(".raw").c_str());
+                    volumetric_image.save_raw(destination_file.c_str());
                     break;
                 default:
                     std::cerr << "Unsupported format" << std::endl;
@@ -303,10 +317,10 @@ public:
                         switch (m_format)
                         {
                         case CIMG:
-                            packed_image.save_cimg(destination_file_packed.append(".cimg").c_str());
+                            packed_image.save_cimg(destination_file_packed.c_str());
                             break;
                         case RAW:
-                            packed_image.save_raw(destination_file_packed.append(".raw").c_str());
+                            packed_image.save_raw(destination_file_packed.c_str());
                             break;
                         default:
                             std::cerr << "Unsupported format" << std::endl;
@@ -326,7 +340,8 @@ public:
                 // Grand finish
                 metadata.m_converted = true;
                 m_modality_occurrences[metadata.m_modality] = m_modality_occurrences[metadata.m_modality] + 1;
-                if (m_copy_originals) std::filesystem::copy(file_dir, collection_dir / file_name, std::filesystem::copy_options::recursive);
+                if (m_copy_originals)
+                    std::filesystem::copy(file_dir, collection_dir / file_name, std::filesystem::copy_options::recursive);
             }
             catch (...) // Skip images with any kinds of problems
             {
