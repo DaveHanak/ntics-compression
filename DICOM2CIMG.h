@@ -222,6 +222,12 @@ public:
                       { return a.path().filename() < b.path().filename(); });
 
             // The result file name
+            std::string file_name =
+                metadata.m_collection + "_" +
+                metadata.m_modality + "_" +
+                std::to_string(m_modality_occurrences[metadata.m_modality] + 1);
+
+            // Suffix, not included in originals directory name
             std::string suffix;
             switch (m_format)
             {
@@ -235,12 +241,9 @@ public:
                 std::cerr << "Unsupported format" << std::endl;
                 return false;
             }
-            std::string file_name =
-                metadata.m_collection + "_" +
-                metadata.m_modality + "_" +
-                std::to_string(m_modality_occurrences[metadata.m_modality] + 1) +
-                suffix;
-            fs::path destination_file = collection_dir / file_name;
+
+            // The path of the saved file
+            fs::path destination_file = collection_dir / (file_name + suffix);
 
             // Prepare the directory for packed images
             fs::path destination_packed = collection_dir / "packed";
@@ -252,7 +255,7 @@ public:
                     return false;
                 }
             }
-            fs::path destination_file_packed = destination_packed / file_name;
+            fs::path destination_file_packed = destination_packed / (file_name + suffix);
 
             // Iterate over the sorted slices, append them to the result image
             try
