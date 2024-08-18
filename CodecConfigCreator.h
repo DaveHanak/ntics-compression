@@ -33,12 +33,12 @@ class CodecConfigCreator
 private:
     bool m_jp3d, m_avc, m_hevc, m_vvc;
 
-        std::string create_config_avc(const ConfigData &configData) const
+    std::string create_config_hevc(const ConfigData &configData) const
     {
         std::string config(
             R"(
 InputFile: XnameX.raw
-BitstreamFile: XnameX.265
+BitstreamFile: XnameX.265e
 SourceWidth: XwidthX
 SourceHeight: XheightX
 FramesToBeEncoded: XdepthX
@@ -46,7 +46,6 @@ FrameRate: 1
 Profile: monochrome
 InputChromaFormat: 400
 CostMode: lossless
-QP: 0
 TransquantBypassEnable: 1
 CUTransquantBypassFlagForce: 1
 GOPSize: 1
@@ -63,33 +62,47 @@ QuadtreeTULog2MaxSize: 5
         return config;
     }
 
-    std::string create_config_hevc(const ConfigData &configData) const
+    std::string create_config_avc_enc(const ConfigData &configData) const
     {
         std::string config(
             R"(
-InputFile: XnameX.raw
-BitstreamFile: XnameX.265
-SourceWidth: XwidthX
-SourceHeight: XheightX
-FramesToBeEncoded: XdepthX
-FrameRate: 1
-Profile: monochrome
-InputChromaFormat: 400
-CostMode: lossless
-QP: 0
-TransquantBypassEnable: 1
-CUTransquantBypassFlagForce: 1
-GOPSize: 1
-IntraPeriod: 1
-LoopFilterDisable: 1
-ConstrainedIntraPred: 1
-SAO: 0
-QuadtreeTULog2MaxSize: 5
+InputFile = "XnameX.raw"
+ReconFile = "XnameX_rec.raw"
+OutputFile = "XnameX.264e"
+SourceWidth = XwidthX
+SourceHeight = XheightX
+OutputWidth = XwidthX
+OutputHeight = XheightX
+FramesToBeEncoded = XdepthX
             )");
         config = std::regex_replace(config, std::regex("XnameX"), configData.m_name);
         config = std::regex_replace(config, std::regex("XwidthX"), configData.m_width);
         config = std::regex_replace(config, std::regex("XheightX"), configData.m_height);
         config = std::regex_replace(config, std::regex("XdepthX"), configData.m_depth);
+        return config;
+    }
+
+    std::string create_config_avc_dec(const ConfigData &configData) const
+    {
+        std::string config(
+            R"(
+InputFile = "XnameX.264e" 
+OutputFile = "XnameX.264d" 
+RefFile = "XnameX_rec.raw" 
+WriteUV = 0 
+FileFormat = 0 
+RefOffset = 0 
+POCScale = 2 
+DisplayDecParams = 0 
+ConcealMode = 0 
+RefPOCGap = 2 
+POCGap = 2 
+Silent = 0 
+IntraProfileDeblocking = 1 
+DecFrmNum = 0 
+DecodeAllLayers = 0 
+            )");
+        config = std::regex_replace(config, std::regex("XnameX"), configData.m_name);
         return config;
     }
 
@@ -132,12 +145,27 @@ public:
                     // Now we have all the data from the csv; let us create configs
                     if (m_avc)
                     {
+                        // AVC reference software JM encoder and decoder configs
+                        // ---
+                        // Note: the default config is the supplied lossless.cfg264e
+                        // The created configs are only meant for resetting the defaults
+                        // ---
                         for (const auto &configData : configDatas)
                         {
-                            std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg264"));
+                            std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg264e"));
                             if (config)
                             {
-                                config << create_config_avc(configData);
+                                config << create_config_avc_enc(configData);
+                            }
+                            else
+                            {
+                                std::cerr << "Error: " << strerror(errno);
+                                return false;
+                            }
+                            std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg264d"));
+                            if (config)
+                            {
+                                config << create_config_avc_dec(configData);
                             }
                             else
                             {
@@ -148,9 +176,10 @@ public:
                     }
                     if (m_hevc)
                     {
+                        // HEVC reference software HM encoder configs
                         for (const auto &configData : configDatas)
                         {
-                            std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg265"));
+                            std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg265e"));
                             if (config)
                             {
                                 config << create_config_hevc(configData);
@@ -161,6 +190,15 @@ public:
                                 return false;
                             }
                         }
+                    }
+                    if (m_vvc)
+                    {
+                        // TODO
+                        // TIP: use the existing lossless.cfg from VVC ref. soft. repo
+                    }
+                    if (m_jp3d)
+                    {
+                        // TODO
                     }
                 }
             }
