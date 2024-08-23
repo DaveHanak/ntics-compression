@@ -106,6 +106,67 @@ DecodeAllLayers = 0
         return config;
     }
 
+    std::string create_config_vvc_enc(const ConfigData &configData) const
+    {
+        std::string config(
+            R"(
+InputFile: XnameX.raw
+BitstreamFile: XnameX.266e
+SourceWidth: XwidthX
+SourceHeight: XheightX
+FramesToBeEncoded: XdepthX
+FrameRate: 1
+Profile: auto
+InputBitDepth: 8
+InputChromaFormat: 400
+TransformSkip: 1
+TransformSkipFast: 1
+TransformSkipLog2MaxSize: 5
+GOPSize: 1
+IntraPeriod: 1
+DecodingRefreshType: 1
+DisableLoopFilterAcrossTiles: 1
+DisableLoopFilterAcrossSlices: 1
+CostMode : lossless
+BDPCM : 0
+ChromaTS : 1
+DepQuant : 0
+RDOQ : 0
+RDOQTS : 0
+SBT : 0
+LMCSEnable : 0
+ISP : 0
+MTS : 0
+LFNST : 0
+JointCbCr : 0
+DeblockingFilterDisable : 1
+SAO : 0
+ALF : 0
+CCALF : 0
+DMVR : 0
+BIO : 0
+PROF : 0
+Log2MaxTbSize : 5
+InternalBitDepth : 0
+TSRCdisableLL : 1
+            )");
+        config = std::regex_replace(config, std::regex("XnameX"), configData.m_name);
+        config = std::regex_replace(config, std::regex("XwidthX"), configData.m_width);
+        config = std::regex_replace(config, std::regex("XheightX"), configData.m_height);
+        config = std::regex_replace(config, std::regex("XdepthX"), configData.m_depth);
+        return config;
+    }
+
+    std::string create_config_jp3d_enc(const ConfigData &configData) const
+    {
+        std::string config("./jp3d -c --size=XwidthX,XheightX,XdepthX --levels=4,4,2 --bitrates=- XnameX.raw XnameX.jp3de");
+        config = std::regex_replace(config, std::regex("XnameX"), configData.m_name);
+        config = std::regex_replace(config, std::regex("XwidthX"), configData.m_width);
+        config = std::regex_replace(config, std::regex("XheightX"), configData.m_height);
+        config = std::regex_replace(config, std::regex("XdepthX"), configData.m_depth);
+        return config;
+    }
+
 public:
     CodecConfigCreator(bool jp3d, bool avc, bool hevc, bool vvc)
         : m_jp3d(jp3d), m_avc(avc), m_hevc(hevc), m_vvc(vvc) {}
@@ -152,25 +213,29 @@ public:
                         // ---
                         for (const auto &configData : configDatas)
                         {
-                            std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg264e"));
-                            if (config)
-                            {
-                                config << create_config_avc_enc(configData);
+                            { // Encoder config
+                                std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg264e"));
+                                if (config)
+                                {
+                                    config << create_config_avc_enc(configData);
+                                }
+                                else
+                                {
+                                    std::cerr << "Error creating AVC encoder config: " << strerror(errno);
+                                    return false;
+                                }
                             }
-                            else
-                            {
-                                std::cerr << "Error: " << strerror(errno);
-                                return false;
-                            }
-                            std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg264d"));
-                            if (config)
-                            {
-                                config << create_config_avc_dec(configData);
-                            }
-                            else
-                            {
-                                std::cerr << "Error: " << strerror(errno);
-                                return false;
+                            { // Decoder config
+                                std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg264d"));
+                                if (config)
+                                {
+                                    config << create_config_avc_dec(configData);
+                                }
+                                else
+                                {
+                                    std::cerr << "Error creating AVC decoder config: " << strerror(errno);
+                                    return false;
+                                }
                             }
                         }
                     }
@@ -186,19 +251,44 @@ public:
                             }
                             else
                             {
-                                std::cerr << "Error: " << strerror(errno);
+                                std::cerr << "Error creating HEVC encoder config: " << strerror(errno);
                                 return false;
                             }
                         }
                     }
                     if (m_vvc)
                     {
-                        // TODO
-                        // TIP: use the existing lossless.cfg from VVC ref. soft. repo
+                        // VVC reference software VTM encoder configs
+                        for (const auto &configData : configDatas)
+                        {
+                            std::ofstream config(entry.path().parent_path() / (configData.m_name + ".cfg266e"));
+                            if (config)
+                            {
+                                config << create_config_vvc_enc(configData);
+                            }
+                            else
+                            {
+                                std::cerr << "Error creating VVC encoder config: " << strerror(errno);
+                                return false;
+                            }
+                        }
                     }
                     if (m_jp3d)
                     {
-                        // TODO
+                        // JP3D compression scripts
+                        for (const auto &configData : configDatas)
+                        {
+                            std::ofstream config(entry.path().parent_path() / (configData.m_name + ".sh"));
+                            if (config)
+                            {
+                                config << create_config_jp3d_enc(configData);
+                            }
+                            else
+                            {
+                                std::cerr << "Error creating JP3D config: " << strerror(errno);
+                                return false;
+                            }
+                        }
                     }
                 }
             }
