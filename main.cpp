@@ -1,7 +1,7 @@
 // #define CONVERT_DICOM
-// #define CREATE_CONFIGS
+ #define CREATE_CONFIGS
 // #define SANDBOX
-#define CREATE_RESULTS_FOR_CODEC
+//#define CREATE_RESULTS_FOR_CODEC
 
 #ifdef CONVERT_DICOM
 #include "DicomConverter.h"
@@ -76,7 +76,8 @@ int main()
 #endif
 
 #ifdef CREATE_CONFIGS
-    CodecConfigCreator ccc(false, false, true, false);
+                        // JP3D   AVC    HEVC    VVC
+    CodecConfigCreator ccc(false, true, false, false);
     ccc.run("/media/hamster/Hamster Old/NTWI/OurSet");
 #endif
 
