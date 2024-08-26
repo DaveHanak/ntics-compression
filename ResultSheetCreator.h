@@ -10,7 +10,7 @@ enum Codec
     HEVC,
     VVC,
     JP3D,
-}
+};
 
 class Result
 {
@@ -37,7 +37,7 @@ public:
     };
     enum FieldTime
     {
-        Name = 0,
+        FileName = 0,
         Time = 1,
     };
 
@@ -139,15 +139,16 @@ public:
                             {
                                 using RFT = Result::FieldTime;
                                 using s = std::string;
-                                s name = s(row[RFT::Name]);
+                                s name = s(row[RFT::FileName]);
                                 size_t dot_index = name.find_last_of("."); // Remove .cfg*
                                 if (dot_index != s::npos)
-                                    name = name.substr(0, dot_index);
+                                    name = name.substr(2, dot_index - 2);
                                 for (auto &result : results)
                                 {
                                     if (result.m_name == name)
                                     {
                                         result.m_encoding_time = s(row[RFT::Time]);
+                                        break;
                                     }
                                 }
                             }
@@ -170,15 +171,16 @@ public:
                             {
                                 using RFT = Result::FieldTime;
                                 using s = std::string;
-                                s name = s(row[RFT::Name]);
+                                s name = s(row[RFT::FileName]);
                                 size_t dot_index = name.find_last_of("."); // Remove .cfg*
                                 if (dot_index != s::npos)
-                                    name = name.substr(0, dot_index);
+                                    name = name.substr(2, dot_index - 2);
                                 for (auto &result : results)
                                 {
                                     if (result.m_name == name)
                                     {
                                         result.m_decoding_time = s(row[RFT::Time]);
+                                        break;
                                     }
                                 }
                             }
@@ -200,7 +202,7 @@ public:
                             uintmax_t pixels = w * h * d;
 
                             // Bits per pixel [bits/pixels]
-                            uintmax_t enc_size_in_bits = fs::file_size(result.m_name + enc_ext) * 8;
+                            uintmax_t enc_size_in_bits = fs::file_size(parent_path / (result.m_name + enc_ext)) * 8;
                             double bpp = (double)enc_size_in_bits / (double)pixels;
                             result.m_bits_per_pixel = bpp;
 
