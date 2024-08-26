@@ -54,6 +54,7 @@ LoopFilterDisable: 1
 ConstrainedIntraPred: 1
 SAO: 0
 QuadtreeTULog2MaxSize: 5
+ConformanceWindowMode: 1
             )");
         config = std::regex_replace(config, std::regex("XnameX"), configData.m_name);
         config = std::regex_replace(config, std::regex("XwidthX"), configData.m_width);
@@ -149,6 +150,7 @@ PROF : 0
 Log2MaxTbSize : 5
 InternalBitDepth : 0
 TSRCdisableLL : 1
+ConformanceWindowMode: 1
             )");
         config = std::regex_replace(config, std::regex("XnameX"), configData.m_name);
         config = std::regex_replace(config, std::regex("XwidthX"), configData.m_width);

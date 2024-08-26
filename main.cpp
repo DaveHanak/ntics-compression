@@ -1,6 +1,7 @@
-#define CONVERT_DICOM
-//#define CREATE_CONFIGS
+// #define CONVERT_DICOM
+// #define CREATE_CONFIGS
 // #define SANDBOX
+#define CREATE_RESULTS_FOR_CODEC
 
 #ifdef CONVERT_DICOM
 #include "DicomConverter.h"
@@ -10,6 +11,9 @@
 #endif
 #ifdef SANDBOX
 #include "CImg.h"
+#endif
+#ifdef CREATE_RESULTS_FOR_CODEC
+#include "ResultSheetCreator.h"
 #endif
 
 int main()
@@ -72,7 +76,12 @@ int main()
 #endif
 
 #ifdef CREATE_CONFIGS
-    CodecConfigCreator ccc(false, true, false, false);
+    CodecConfigCreator ccc(false, false, true, false);
     ccc.run("/media/hamster/Hamster Old/NTWI/OurSet");
+#endif
+
+#ifdef CREATE_RESULTS_FOR_CODEC
+    ResultSheetCreator rsc;
+    rsc.run("/media/hamster/Hamster Old/NTWI/OurSet", HEVC);
 #endif
 }
