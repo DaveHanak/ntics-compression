@@ -1,7 +1,7 @@
 // #define CONVERT_DICOM
- #define CREATE_CONFIGS
-// #define SANDBOX
-//#define CREATE_RESULTS_FOR_CODEC
+ //#define CREATE_CONFIGS
+//#define SANDBOX
+ #define CREATE_RESULTS_FOR_CODEC
 
 #ifdef CONVERT_DICOM
 #include "DicomConverter.h"
@@ -11,6 +11,11 @@
 #endif
 #ifdef SANDBOX
 #include "CImg.h"
+#include "FileMetadata.h"
+#include <string>
+#include <vector>
+#include <fstream>
+#include <filesystem>
 #endif
 #ifdef CREATE_RESULTS_FOR_CODEC
 #include "ResultSheetCreator.h"
@@ -19,8 +24,47 @@
 int main()
 {
 #ifdef SANDBOX
-    using namespace cimg_library;
-    // experiments here
+    using Img = cimg_library::CImg<unsigned char>;
+    namespace fs = std::filesystem;
+    fs::path path = "/media/hamster/Hamster Old/NTWI/OurSet/Bruylants";
+    std::string bruy = "Bruylants";
+    std::vector<FileMetadata> metas;
+    for (const auto &entry : fs::directory_iterator(path))
+    {
+        if (entry.is_regular_file() && entry.path().extension() == ".cimg")
+        {
+            fs::path parent = entry.path().parent_path();
+            std::string newname = entry.path().stem().string() + ".raw";
+            fs::path newpath = parent / newname;
+
+            Img img = Img::get_load_cimg(entry.path().c_str());
+            img.save_raw(newpath.c_str());
+
+            FileMetadata meta = FileMetadata(bruy, bruy, bruy, bruy);
+
+            std::string fname = newpath.filename();
+            meta.set_image_params(
+                fname,
+                img.width(),
+                img.height(),
+                img.depth(),
+                1);
+
+            meta.m_converted = true;
+            metas.push_back(meta);
+        }
+    }
+    fs::path converted_metadatas = path / "conv_metadata.csv";
+    std::ofstream conv_metadata(converted_metadatas);
+    if (conv_metadata)
+    {
+        conv_metadata << FileMetadata::get_info_header();
+        for (const auto &m : metas)
+        {
+            if (m.m_converted)
+                conv_metadata << m.get_info() << "\n";
+        }
+    }
 #endif
 
 #ifdef CONVERT_DICOM
@@ -77,12 +121,16 @@ int main()
 
 #ifdef CREATE_CONFIGS
                         // JP3D   AVC    HEVC    VVC
-    CodecConfigCreator ccc(false, true, false, false);
-    ccc.run("/media/hamster/Hamster Old/NTWI/OurSet");
+    CodecConfigCreator ccc(true, true, true, true);
+    //ccc.run("/media/hamster/Hamster Old/NTWI/OurSet");
+    ccc.run("/media/hamster/Hamster Old/NTWI/OurSet/Bruylants");
 #endif
 
 #ifdef CREATE_RESULTS_FOR_CODEC
     ResultSheetCreator rsc;
+    rsc.run("/media/hamster/Hamster Old/NTWI/OurSet", JP3D);
+    rsc.run("/media/hamster/Hamster Old/NTWI/OurSet", AVC);
     rsc.run("/media/hamster/Hamster Old/NTWI/OurSet", HEVC);
+    rsc.run("/media/hamster/Hamster Old/NTWI/OurSet", VVC);
 #endif
 }

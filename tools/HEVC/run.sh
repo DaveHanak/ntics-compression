@@ -2,14 +2,15 @@
 
 # Set these accordingly
 directories=(
-    "../../../../OurSet/CMB-CRC"
-    "../../../../OurSet/CMB-LCA"
-    "../../../../OurSet/CMB-MEL"
-    "../../../../OurSet/CPTAC-LUAD"
-    "../../../../OurSet/CPTAC-PDA"
-    "../../../../OurSet/CPTAC-SAR"
-    "../../../../OurSet/CPTAC-UCEC"
-    "../../../../OurSet/QIN-BREAST"
+    # "../../../../OurSet/CMB-CRC"
+    # "../../../../OurSet/CMB-LCA"
+    # "../../../../OurSet/CMB-MEL"
+    # "../../../../OurSet/CPTAC-LUAD"
+    # "../../../../OurSet/CPTAC-PDA"
+    # "../../../../OurSet/CPTAC-SAR"
+    # "../../../../OurSet/CPTAC-UCEC"
+    # "../../../../OurSet/QIN-BREAST"
+    "../../../../OurSet/Bruylants"
 )
 origin=$(pwd)
 

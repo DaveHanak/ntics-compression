@@ -2,14 +2,15 @@
 
 # Set these accordingly
 directories=(
-    "../../../../OurSet/CMB-CRC"
-    "../../../../OurSet/CMB-LCA"
-    "../../../../OurSet/CMB-MEL"
-    "../../../../OurSet/CPTAC-LUAD"
-    "../../../../OurSet/CPTAC-PDA"
-    "../../../../OurSet/CPTAC-SAR"
-    "../../../../OurSet/CPTAC-UCEC"
-    "../../../../OurSet/QIN-BREAST"
+    # "../../../../OurSet/CMB-CRC"
+    # "../../../../OurSet/CMB-LCA"
+    # "../../../../OurSet/CMB-MEL"
+    # "../../../../OurSet/CPTAC-LUAD"
+    # "../../../../OurSet/CPTAC-PDA"
+    # "../../../../OurSet/CPTAC-SAR"
+    # "../../../../OurSet/CPTAC-UCEC"
+    # "../../../../OurSet/QIN-BREAST"
+    "../../../../OurSet/Bruylants"
 )
 origin=$(pwd)
 
@@ -22,6 +23,15 @@ default="lossless.dcfg264e"
 
 logenc="AVC-enc.log"
 logdec="AVC-dec.log"
+
+leftovers=(
+    "log.dec"
+    "dataDec.txt"
+    "stats.dat"
+    "log.dat"
+    "leakybucketparam.cfg"
+    "data.txt"
+)
 
 # Copy tools to the target directories
 for dir in ${directories[@]}; do
@@ -59,6 +69,7 @@ for dir in ${directories[@]}; do
         end=$(date +%s.%N)
         elapsed=$(echo "$end - $start" | bc)
         echo "$file,$elapsed" >> "$logdec"
+        rm "$file"
     done
     cd "$origin"
 done
@@ -79,4 +90,14 @@ for dir in ${directories[@]}; do
             rm "$dir/$tool"
         fi
     done
+done
+for dir in ${directories[@]}; do
+    for leftover in ${leftovers[@]}; do
+        if [ -f "$dir/$leftover" ]; then
+            rm "$dir/$leftover"
+        fi
+    done
+done
+for dir in ${directories[@]}; do
+    rm "$dir/"*"_rec.raw"
 done
